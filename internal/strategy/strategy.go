@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"math"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
@@ -165,8 +166,132 @@ func ComputePnL(won bool, entryPrice, contracts, feeCents int) int {
 	return -(entryPrice*contracts + feeCents)
 }
 
+// reconcilePositions queries the Kalshi API for existing BTC15M positions
+// and pre-populates the markets map so the engine doesn't re-trade on restart.
+func (e *Engine) reconcilePositions(ctx context.Context) {
+	if e.cfg.DryRun {
+		slog.Info("skipping position reconciliation (dry-run mode)")
+		return
+	}
+
+	positions, err := e.client.GetPositions(ctx, "")
+	if err != nil {
+		slog.Error("position reconciliation failed", "err", err)
+		return
+	}
+
+	reconciled := 0
+	for _, pos := range positions {
+		if pos.Position == 0 || !strings.HasPrefix(pos.Ticker, "KXBTC15M-") {
+			continue
+		}
+
+		m, err := e.client.GetMarket(ctx, pos.Ticker)
+		if err != nil {
+			slog.Warn("reconcile: failed to get market", "ticker", pos.Ticker, "err", err)
+			continue
+		}
+
+		// Already settled — nothing to track
+		if m.Result != "" {
+			continue
+		}
+
+		closeTime, err := m.CloseTimeParsed()
+		if err != nil || closeTime.IsZero() {
+			slog.Warn("reconcile: bad close time", "ticker", pos.Ticker, "err", err)
+			continue
+		}
+
+		var side string
+		contracts := pos.Position
+		if contracts > 0 {
+			side = "yes"
+		} else {
+			side = "no"
+			contracts = -contracts
+		}
+
+		avgPrice, fee := e.reconstructEntry(ctx, pos.Ticker, side, contracts)
+
+		ms := &MarketState{
+			Ticker:        pos.Ticker,
+			CloseTime:     closeTime,
+			Strike:        m.StrikePrice(),
+			StrikeFetched: m.StrikePrice() > 0,
+			Evaluated:     true,
+			Traded:        true,
+			Side:          side,
+			EntryPrice:    avgPrice,
+			Contracts:     contracts,
+			FeeCents:      fee,
+		}
+
+		e.mu.Lock()
+		e.markets[pos.Ticker] = ms
+		e.mu.Unlock()
+
+		// Subscribe to WS if market is still open (needed for settlement polling after close)
+		if err := e.ws.Subscribe([]string{pos.Ticker}); err != nil {
+			slog.Warn("reconcile: ws subscribe failed", "ticker", pos.Ticker, "err", err)
+		} else {
+			ms.Subscribed = true
+		}
+
+		slog.Info("reconciled position",
+			"ticker", pos.Ticker,
+			"side", side,
+			"contracts", contracts,
+			"avgPrice", avgPrice,
+			"fee", fee,
+			"closeTime", closeTime.Format(time.RFC3339),
+		)
+		reconciled++
+	}
+
+	slog.Info("position reconciliation complete", "reconciled", reconciled)
+}
+
+// reconstructEntry computes the weighted-average entry price from fills for a position.
+func (e *Engine) reconstructEntry(ctx context.Context, ticker, side string, contracts int) (avgPrice, fee int) {
+	params := url.Values{}
+	params.Set("ticker", ticker)
+
+	fills, _, err := e.client.GetFills(ctx, params)
+	if err != nil {
+		slog.Warn("reconcile: failed to get fills", "ticker", ticker, "err", err)
+		return 0, 0
+	}
+
+	totalCost := 0
+	totalContracts := 0
+	for _, f := range fills {
+		if f.Action != "buy" {
+			continue
+		}
+		var price int
+		if f.Side == "yes" {
+			price = f.YesPrice
+		} else {
+			price = f.NoPrice
+		}
+		totalCost += f.Count * price
+		totalContracts += f.Count
+	}
+
+	if totalContracts == 0 {
+		return 0, 0
+	}
+
+	avgPrice = totalCost / totalContracts
+	fee = TakerFee(contracts, avgPrice)
+	return avgPrice, fee
+}
+
 // Run starts the engine's main loop with a 1-second ticker.
 func (e *Engine) Run(ctx context.Context) error {
+	e.reconcilePositions(ctx)
+
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 
