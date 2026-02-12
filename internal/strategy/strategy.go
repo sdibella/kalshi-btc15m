@@ -682,10 +682,16 @@ func (e *Engine) pollSettlement(ctx context.Context, ms *MarketState) {
 	pnl := ComputePnL(sideWon, ms.EntryPrice, ms.Contracts, ms.FeeCents)
 	won := pnl > 0
 
-	_ = e.journal.Log(journal.NewSettlement(
+	if err := e.journal.Log(journal.NewSettlement(
 		ms.Ticker, ms.Strike, 0, won, pnl, ms.FeeCents,
 		ms.Side, ms.EntryPrice, ms.Contracts, nil, e.cfg.DryRun,
-	))
+	)); err != nil {
+		slog.Error("failed to journal settlement - will retry",
+			"ticker", ms.Ticker,
+			"err", err,
+		)
+		return
+	}
 
 	slog.Info("settlement",
 		"ticker", ms.Ticker,
