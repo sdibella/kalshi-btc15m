@@ -78,16 +78,17 @@ func NewEngine(client *kalshi.Client, ws *kalshi.WSClient, cfg *config.Config, j
 }
 
 // Evaluate determines whether to trade based on orderbook prices.
-// yes_ask >= 55 -> buy YES at yesBid
-// no_ask (100-yesBid) >= 55 -> buy NO at 100-yesAsk
+// yes_ask >= 55 -> buy YES at yesBid+1 (improves fill rate on 2c spreads)
+// no_ask (100-yesBid) >= 55 -> buy NO at noBid+1
 // else -> no trade
 func Evaluate(yesBid, yesAsk int) Signal {
 	if yesAsk >= 55 {
-		return Signal{Side: "yes", LimitPrice: yesBid, RefAsk: yesAsk}
+		return Signal{Side: "yes", LimitPrice: yesBid + 1, RefAsk: yesAsk}
 	}
 	noAsk := 100 - yesBid
 	if noAsk >= 55 {
-		return Signal{Side: "no", LimitPrice: 100 - yesAsk, RefAsk: noAsk}
+		noBid := 100 - yesAsk
+		return Signal{Side: "no", LimitPrice: noBid + 1, RefAsk: noAsk}
 	}
 	return Signal{} // no trade
 }
