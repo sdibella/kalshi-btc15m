@@ -78,15 +78,15 @@ func NewEngine(client *kalshi.Client, ws *kalshi.WSClient, cfg *config.Config, j
 }
 
 // Evaluate determines whether to trade based on orderbook prices.
-// yes_ask >= 55 -> buy YES at yesAsk (take the ask for immediate fill)
-// no_ask (100-yesBid) >= 55 -> buy NO at noAsk
-// else -> no trade
+// Threshold 80c filters for high-confidence markets (96% WR in backtest).
+// Limit at ask price for immediate taker fill.
 func Evaluate(yesBid, yesAsk int) Signal {
-	if yesAsk >= 55 {
+	const threshold = 80
+	if yesAsk >= threshold {
 		return Signal{Side: "yes", LimitPrice: yesAsk, RefAsk: yesAsk}
 	}
 	noAsk := 100 - yesBid
-	if noAsk >= 55 {
+	if noAsk >= threshold {
 		return Signal{Side: "no", LimitPrice: noAsk, RefAsk: noAsk}
 	}
 	return Signal{} // no trade
@@ -480,7 +480,7 @@ func (e *Engine) processMarket(ctx context.Context, ms *MarketState) {
 			"ticker", ms.Ticker,
 			"yesAsk", yesAsk,
 			"noAsk", 100-yesBid,
-			"threshold", 55,
+			"threshold", 80,
 		)
 		return // no trade
 	}
