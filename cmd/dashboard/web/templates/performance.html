@@ -1,4 +1,42 @@
-<!-- By Side Section -->
+<!-- Performance by Entry Price -->
+<div class="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+    <h3 class="text-xl font-semibold mb-4 text-gray-100">Performance by Entry Price</h3>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-700 text-gray-300 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3 text-left">Range</th>
+                    <th class="px-4 py-3 text-right">Trades</th>
+                    <th class="px-4 py-3 text-right">Win Rate</th>
+                    <th class="px-4 py-3 text-right">Total P&L</th>
+                    <th class="px-4 py-3 text-right">Avg P&L</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700">
+                {{range .ByPrice}}
+                {{if gt .Trades 0}}
+                <tr class="hover:bg-gray-750 transition-colors">
+                    <td class="px-4 py-3 font-mono text-gray-200">{{.Label}}</td>
+                    <td class="px-4 py-3 text-right font-mono text-gray-200">{{.Trades}}</td>
+                    <td class="px-4 py-3 text-right font-mono text-gray-200">
+                        {{printf "%.0f" (mulf .WinRate 100.0)}}%
+                        <span class="text-xs text-gray-500">({{.Wins}}W)</span>
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono font-semibold {{if ge .TotalPnL 0}}text-green-400{{else}}text-red-400{{end}}">
+                        ${{printf "%.2f" (divf (float .TotalPnL) 100.0)}}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono font-semibold {{if ge .AvgPnL 0.0}}text-green-400{{else}}text-red-400{{end}}">
+                        ${{printf "%.2f" (divf .AvgPnL 100.0)}}
+                    </td>
+                </tr>
+                {{end}}
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Performance by Side -->
 <div class="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
     <h3 class="text-xl font-semibold mb-4 text-gray-100">Performance by Side</h3>
     <div class="overflow-x-auto">
@@ -30,7 +68,7 @@
                         {{$stats.Trades}}
                     </td>
                     <td class="px-4 py-3 text-right font-mono text-gray-200">
-                        {{printf "%.1f" (mulf $stats.WinRate 100.0)}}%
+                        {{printf "%.0f" (mulf $stats.WinRate 100.0)}}%
                         <span class="text-xs text-gray-500">({{$stats.Wins}}W)</span>
                     </td>
                     <td class="px-4 py-3 text-right font-mono font-semibold {{if ge $stats.TotalPnL 0}}text-green-400{{else}}text-red-400{{end}}">
@@ -43,5 +81,36 @@
                 {{end}}
             </tbody>
         </table>
+    </div>
+</div>
+
+<!-- Expectancy Stats -->
+<div class="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+    <h3 class="text-xl font-semibold mb-4 text-gray-100">Trade Expectancy</h3>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div>
+            <p class="text-gray-400 text-sm">Avg Win</p>
+            <p class="text-xl font-bold font-mono {{if ge .AvgWin 0.0}}text-green-400{{else}}text-gray-500{{end}}">
+                {{if eq .AvgWin 0.0}}-{{else}}${{printf "%.2f" (divf .AvgWin 100.0)}}{{end}}
+            </p>
+        </div>
+        <div>
+            <p class="text-gray-400 text-sm">Avg Loss</p>
+            <p class="text-xl font-bold font-mono {{if lt .AvgLoss 0.0}}text-red-400{{else}}text-gray-500{{end}}">
+                {{if eq .AvgLoss 0.0}}-{{else}}${{printf "%.2f" (divf .AvgLoss 100.0)}}{{end}}
+            </p>
+        </div>
+        <div>
+            <p class="text-gray-400 text-sm">Expectancy</p>
+            <p class="text-xl font-bold font-mono {{if gt .Expectancy 0.0}}text-green-400{{else if lt .Expectancy 0.0}}text-red-400{{else}}text-gray-500{{end}}">
+                {{if eq .Expectancy 0.0}}-{{else}}${{printf "%.2f" (divf .Expectancy 100.0)}}{{end}}
+            </p>
+        </div>
+        <div>
+            <p class="text-gray-400 text-sm">Total Fees</p>
+            <p class="text-xl font-bold font-mono text-yellow-400">
+                {{if gt .TotalFees 0}}${{printf "%.2f" (divf (float .TotalFees) 100.0)}}{{else}}-{{end}}
+            </p>
+        </div>
     </div>
 </div>

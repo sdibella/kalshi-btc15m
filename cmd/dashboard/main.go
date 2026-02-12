@@ -36,6 +36,12 @@ func main() {
 		"addf":    func(a, b float64) float64 { return a + b },
 		"toupper": strings.ToUpper,
 		"float":   func(i int) float64 { return float64(i) },
+		"abs": func(i int) int {
+			if i < 0 {
+				return -i
+			}
+			return i
+		},
 	}
 	var err error
 	templates, err = template.New("").Funcs(funcMap).ParseFS(templateFS, "web/templates/*.html")

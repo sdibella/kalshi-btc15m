@@ -204,6 +204,37 @@ func (a *Analyzer) ComputeSummary() Summary {
 		currentDrawdown = float64(peakBal-curBal) / float64(peakBal) * 100
 	}
 
+	// Compute current streak from settlements in chronological order
+	streak := 0
+	for i := len(a.settlements) - 1; i >= 0; i-- {
+		if a.settlements[i].Won {
+			if streak < 0 {
+				break
+			}
+			streak++
+		} else {
+			if streak > 0 {
+				break
+			}
+			streak--
+		}
+	}
+
+	// Compute max drawdown from equity curve
+	maxDrawdown := 0.0
+	peak := 0
+	for _, ep := range a.equityCurve {
+		if ep.BalanceCents > peak {
+			peak = ep.BalanceCents
+		}
+		if peak > 0 {
+			dd := float64(peak-ep.BalanceCents) / float64(peak) * 100
+			if dd > maxDrawdown {
+				maxDrawdown = dd
+			}
+		}
+	}
+
 	return Summary{
 		BalanceCents:    curBal,
 		SessionPnL:      totalNetPnL,
@@ -214,19 +245,42 @@ func (a *Analyzer) ComputeSummary() Summary {
 		TotalFees:       totalFees,
 		ROI:             roi,
 		CurrentDrawdown: currentDrawdown,
+		MaxDrawdown:     maxDrawdown,
 		TotalMarkets:    totalMarkets,
+		Streak:          streak,
 	}
 }
 
-// ComputePerformance returns performance breakdown by side.
+// ComputePerformance returns performance breakdown by side and entry price.
 func (a *Analyzer) ComputePerformance() PerformanceBreakdown {
 	bySide := make(map[string]SideStats)
+
+	// Price range buckets: 80-84, 85-89, 90-94, 95-99
+	type bucket struct {
+		label string
+		lo    int // inclusive
+		hi    int // inclusive
+	}
+	buckets := []bucket{
+		{"80-84c", 80, 84},
+		{"85-89c", 85, 89},
+		{"90-94c", 90, 94},
+		{"95-99c", 95, 99},
+	}
+	priceStats := make([]PriceRangeStats, len(buckets))
+	for i, b := range buckets {
+		priceStats[i].Label = b.label
+	}
+
+	var totalWinPnL, totalLossPnL float64
+	var winCount, lossCount, totalFees int
 
 	for _, agg := range a.trades {
 		if !agg.settled {
 			continue
 		}
 
+		// By side
 		if agg.side != "" {
 			sideStats := bySide[agg.side]
 			sideStats.Trades++
@@ -235,6 +289,32 @@ func (a *Analyzer) ComputePerformance() PerformanceBreakdown {
 			}
 			sideStats.TotalPnL += agg.pnl
 			bySide[agg.side] = sideStats
+		}
+
+		// By entry price bucket
+		entryPrice := 0
+		if agg.quantity > 0 {
+			entryPrice = agg.totalCost / agg.quantity
+		}
+		for i, b := range buckets {
+			if entryPrice >= b.lo && entryPrice <= b.hi {
+				priceStats[i].Trades++
+				if agg.won {
+					priceStats[i].Wins++
+				}
+				priceStats[i].TotalPnL += agg.pnl
+				break
+			}
+		}
+
+		// Avg win/loss
+		totalFees += agg.fees
+		if agg.won {
+			totalWinPnL += float64(agg.pnl)
+			winCount++
+		} else {
+			totalLossPnL += float64(agg.pnl)
+			lossCount++
 		}
 	}
 
@@ -246,8 +326,36 @@ func (a *Analyzer) ComputePerformance() PerformanceBreakdown {
 		}
 	}
 
+	for i := range priceStats {
+		if priceStats[i].Trades > 0 {
+			priceStats[i].WinRate = float64(priceStats[i].Wins) / float64(priceStats[i].Trades)
+			priceStats[i].AvgPnL = float64(priceStats[i].TotalPnL) / float64(priceStats[i].Trades)
+		}
+	}
+
+	avgWin := 0.0
+	if winCount > 0 {
+		avgWin = totalWinPnL / float64(winCount)
+	}
+	avgLoss := 0.0
+	if lossCount > 0 {
+		avgLoss = totalLossPnL / float64(lossCount)
+	}
+
+	total := winCount + lossCount
+	expectancy := 0.0
+	if total > 0 {
+		wr := float64(winCount) / float64(total)
+		expectancy = avgWin*wr + avgLoss*(1-wr) // avgLoss is already negative
+	}
+
 	return PerformanceBreakdown{
-		BySide: bySide,
+		BySide:     bySide,
+		ByPrice:    priceStats,
+		AvgWin:     avgWin,
+		AvgLoss:    avgLoss,
+		Expectancy: expectancy,
+		TotalFees:  totalFees,
 	}
 }
 

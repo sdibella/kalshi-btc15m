@@ -8,6 +8,7 @@
                 <th class="px-4 py-3 text-center">Side</th>
                 <th class="px-4 py-3 text-right">Qty</th>
                 <th class="px-4 py-3 text-right">Avg Price</th>
+                <th class="px-4 py-3 text-right">Fees</th>
                 <th class="px-4 py-3 text-center">Result</th>
                 <th class="px-4 py-3 text-right">P&L</th>
             </tr>
@@ -37,6 +38,9 @@
                 </td>
                 <td class="px-4 py-3 text-right font-mono text-gray-200">
                     {{printf "%.0f" .AvgPrice}}c
+                </td>
+                <td class="px-4 py-3 text-right font-mono text-gray-400">
+                    {{if gt .Fees 0}}${{printf "%.2f" (divf (float .Fees) 100.0)}}{{else}}-{{end}}
                 </td>
                 <td class="px-4 py-3 text-center">
                     {{if eq .Result "win"}}
