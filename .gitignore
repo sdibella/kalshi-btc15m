@@ -1,0 +1,19 @@
+# Secrets
+.env
+*.pem
+
+# Binaries
+bot
+dashboard
+
+# Logs and journals
+*.jsonl
+
+# OS
+.DS_Store
+
+# Claude
+.claude/
+
+# Worktrees
+.worktrees/
