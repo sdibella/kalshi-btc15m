@@ -14,11 +14,11 @@ func TestEvaluate(t *testing.T) {
 		wantRefAsk int
 	}{
 		{
-			name:       "yes signal: yesAsk=60, buy YES at yesBid+1=56",
+			name:       "yes signal: yesAsk=60, buy YES at ask-1=59",
 			yesBid:     55,
 			yesAsk:     60,
 			wantSide:   "yes",
-			wantLimit:  56,
+			wantLimit:  59,
 			wantRefAsk: 60,
 		},
 		{
@@ -26,7 +26,7 @@ func TestEvaluate(t *testing.T) {
 			yesBid:     50,
 			yesAsk:     55,
 			wantSide:   "yes",
-			wantLimit:  51,
+			wantLimit:  54,
 			wantRefAsk: 55,
 		},
 		{
@@ -34,7 +34,7 @@ func TestEvaluate(t *testing.T) {
 			yesBid:     40,
 			yesAsk:     45,
 			wantSide:   "no",
-			wantLimit:  56,
+			wantLimit:  59,
 			wantRefAsk: 60,
 		},
 		{
@@ -42,7 +42,7 @@ func TestEvaluate(t *testing.T) {
 			yesBid:     45,
 			yesAsk:     50,
 			wantSide:   "no",
-			wantLimit:  51,
+			wantLimit:  54,
 			wantRefAsk: 55,
 		},
 		{
@@ -62,7 +62,7 @@ func TestEvaluate(t *testing.T) {
 			yesBid:     30,
 			yesAsk:     70,
 			wantSide:   "yes",
-			wantLimit:  31,
+			wantLimit:  69,
 			wantRefAsk: 70,
 		},
 		{
@@ -70,7 +70,7 @@ func TestEvaluate(t *testing.T) {
 			yesBid:     85,
 			yesAsk:     90,
 			wantSide:   "yes",
-			wantLimit:  86,
+			wantLimit:  89,
 			wantRefAsk: 90,
 		},
 		{
@@ -78,7 +78,7 @@ func TestEvaluate(t *testing.T) {
 			yesBid:     10,
 			yesAsk:     15,
 			wantSide:   "no",
-			wantLimit:  86,
+			wantLimit:  89,
 			wantRefAsk: 90,
 		},
 	}
