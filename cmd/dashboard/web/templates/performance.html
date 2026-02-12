@@ -1,0 +1,47 @@
+<!-- By Side Section -->
+<div class="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+    <h3 class="text-xl font-semibold mb-4 text-gray-100">Performance by Side</h3>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-gray-700 text-gray-300 uppercase text-xs">
+                <tr>
+                    <th class="px-4 py-3 text-left">Side</th>
+                    <th class="px-4 py-3 text-right">Trades</th>
+                    <th class="px-4 py-3 text-right">Win Rate</th>
+                    <th class="px-4 py-3 text-right">Total P&L</th>
+                    <th class="px-4 py-3 text-right">Avg P&L</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-700">
+                {{range $side, $stats := .BySide}}
+                <tr class="hover:bg-gray-750 transition-colors">
+                    <td class="px-4 py-3">
+                        {{if eq (toupper $side) "YES"}}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-900 bg-opacity-50 text-blue-300 border border-blue-700">
+                            YES
+                        </span>
+                        {{else}}
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-900 bg-opacity-50 text-orange-300 border border-orange-700">
+                            NO
+                        </span>
+                        {{end}}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-gray-200">
+                        {{$stats.Trades}}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-gray-200">
+                        {{printf "%.1f" (mulf $stats.WinRate 100.0)}}%
+                        <span class="text-xs text-gray-500">({{$stats.Wins}}W)</span>
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono font-semibold {{if ge $stats.TotalPnL 0}}text-green-400{{else}}text-red-400{{end}}">
+                        ${{printf "%.2f" (divf (float $stats.TotalPnL) 100.0)}}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono font-semibold {{if ge $stats.AvgPnL 0.0}}text-green-400{{else}}text-red-400{{end}}">
+                        ${{printf "%.2f" (divf $stats.AvgPnL 100.0)}}
+                    </td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</div>

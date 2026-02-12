@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTC15M Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {}
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-gray-800 border-b border-gray-700 shadow-lg">
+        <div class="container mx-auto px-4 py-4 flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-blue-400">BTC15M Dashboard</h1>
+                <p class="text-gray-400 mt-1">KXBTC15M 55c strategy performance</p>
+            </div>
+            <div class="flex items-center gap-1 bg-gray-900 rounded-lg p-1">
+                <button onclick="setTradingMode('')" id="btn-all"
+                    class="trading-toggle px-4 py-1.5 rounded-md text-sm font-medium transition-colors bg-blue-600 text-white">
+                    All
+                </button>
+                <button onclick="setTradingMode('paper')" id="btn-paper"
+                    class="trading-toggle px-4 py-1.5 rounded-md text-sm font-medium transition-colors text-gray-400 hover:text-gray-200">
+                    Paper
+                </button>
+                <button onclick="setTradingMode('live')" id="btn-live"
+                    class="trading-toggle px-4 py-1.5 rounded-md text-sm font-medium transition-colors text-gray-400 hover:text-gray-200">
+                    Live
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-6">
+        <!-- Summary Section -->
+        <section class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-100">Summary</h2>
+            <div id="summary-container"
+                 hx-get="/api/summary"
+                 hx-trigger="load, every 3s"
+                 hx-swap="innerHTML"
+                 class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="col-span-full text-center text-gray-500 py-8">Loading summary...</div>
+            </div>
+        </section>
+
+        <!-- Equity Chart Section -->
+        <section class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-100">Equity Curve</h2>
+            <div class="bg-gray-800 rounded-lg shadow-lg p-6">
+                <canvas id="equityChart"></canvas>
+            </div>
+        </section>
+
+        <!-- Trades Section -->
+        <section class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-100">Recent Trades</h2>
+            <div id="trades-container"
+                 hx-get="/api/trades"
+                 hx-trigger="load, every 5s"
+                 hx-swap="innerHTML"
+                 class="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+                <div class="text-center text-gray-500 py-8">Loading trades...</div>
+            </div>
+        </section>
+
+        <!-- Performance Section -->
+        <section class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4 text-gray-100">Performance Breakdown</h2>
+            <div id="performance-container"
+                 hx-get="/api/performance"
+                 hx-trigger="load, every 5s"
+                 hx-swap="innerHTML"
+                 class="space-y-6">
+                <div class="text-center text-gray-500 py-8">Loading performance data...</div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        let tradingMode = '';
+
+        function setTradingMode(mode) {
+            tradingMode = mode;
+
+            document.querySelectorAll('.trading-toggle').forEach(btn => {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('text-gray-400', 'hover:text-gray-200');
+            });
+            const activeId = mode ? 'btn-' + mode : 'btn-all';
+            const activeBtn = document.getElementById(activeId);
+            activeBtn.classList.add('bg-blue-600', 'text-white');
+            activeBtn.classList.remove('text-gray-400', 'hover:text-gray-200');
+
+            const suffix = tradingMode ? '?trading=' + tradingMode : '';
+            document.getElementById('summary-container').setAttribute('hx-get', '/api/summary' + suffix);
+            document.getElementById('trades-container').setAttribute('hx-get', '/api/trades' + suffix);
+            document.getElementById('performance-container').setAttribute('hx-get', '/api/performance' + suffix);
+
+            htmx.process(document.body);
+            htmx.trigger(document.getElementById('summary-container'), 'load');
+            htmx.trigger(document.getElementById('trades-container'), 'load');
+            htmx.trigger(document.getElementById('performance-container'), 'load');
+
+            updateEquityChart();
+        }
+
+        const ctx = document.getElementById('equityChart').getContext('2d');
+        let equityChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Balance ($)',
+                    data: [],
+                    borderColor: 'rgb(59, 130, 246)',
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 2,
+                    tension: 0.1,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2.5,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: { color: 'rgb(156, 163, 175)' }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgb(31, 41, 55)',
+                        titleColor: 'rgb(243, 244, 246)',
+                        bodyColor: 'rgb(209, 213, 219)',
+                        borderColor: 'rgb(75, 85, 99)',
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        display: true,
+                        title: { display: true, text: 'Time', color: 'rgb(156, 163, 175)' },
+                        ticks: { color: 'rgb(156, 163, 175)', maxRotation: 45, minRotation: 45 },
+                        grid: { color: 'rgba(75, 85, 99, 0.3)' }
+                    },
+                    y: {
+                        display: true,
+                        title: { display: true, text: 'Balance ($)', color: 'rgb(156, 163, 175)' },
+                        ticks: {
+                            color: 'rgb(156, 163, 175)',
+                            callback: function(value) { return '$' + value.toFixed(2); }
+                        },
+                        grid: { color: 'rgba(75, 85, 99, 0.3)' }
+                    }
+                },
+                interaction: { mode: 'nearest', axis: 'x', intersect: false }
+            }
+        });
+
+        async function updateEquityChart() {
+            try {
+                const suffix = tradingMode ? '?trading=' + tradingMode : '';
+                const response = await fetch('/api/equity' + suffix);
+                const data = await response.json();
+
+                if (data && data.length > 0) {
+                    equityChart.data.labels = data.map(point => {
+                        const date = new Date(point.time);
+                        return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                    });
+                    equityChart.data.datasets[0].data = data.map(point => point.balance_cents / 100);
+                    equityChart.update('none');
+                }
+            } catch (error) {
+                console.error('Failed to update equity chart:', error);
+            }
+        }
+
+        updateEquityChart();
+        setInterval(updateEquityChart, 5000);
+    </script>
+</body>
+</html>

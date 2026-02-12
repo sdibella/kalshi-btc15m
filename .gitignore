@@ -3,12 +3,12 @@
 *.pem
 
 # Binaries
-btc15m-bot
-btc15m-dashboard
-btc15min-4min
-bot
-dashboard
-build/
+/btc15m-bot
+/btc15m-dashboard
+/btc15min-4min
+/bot
+/dashboard
+/build/
 
 # Logs and journals
 *.jsonl
