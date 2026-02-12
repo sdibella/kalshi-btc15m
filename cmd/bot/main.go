@@ -131,15 +131,29 @@ func startDashboard() *exec.Cmd {
 	}
 
 	cmd := exec.Command(dashboardBinary)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+
+	// Open dashboard log file
+	dashboardDir := filepath.Dir(exePath)
+	logFile, err := os.OpenFile(
+		filepath.Join(dashboardDir, "dashboard.log"),
+		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
+		0644,
+	)
+	if err != nil {
+		slog.Error("failed to open dashboard log", "err", err)
+		return nil
+	}
+
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
 
 	err = cmd.Start()
 	if err != nil {
 		slog.Error("failed to start dashboard", "err", err)
+		logFile.Close()
 		return nil
 	}
 
-	slog.Info("dashboard started", "pid", cmd.Process.Pid)
+	slog.Info("dashboard started", "pid", cmd.Process.Pid, "logFile", logFile.Name())
 	return cmd
 }
