@@ -78,10 +78,10 @@ func NewEngine(client *kalshi.Client, ws *kalshi.WSClient, cfg *config.Config, j
 }
 
 // Evaluate determines whether to trade based on orderbook prices.
-// Threshold 80c filters for high-confidence markets (96% WR in backtest).
+// Threshold 85c filters for high-confidence markets (98.7% WR in backtest).
 // Limit at ask price for immediate taker fill.
 func Evaluate(yesBid, yesAsk int) Signal {
-	const threshold = 80
+	const threshold = 85
 	if yesAsk >= threshold {
 		return Signal{Side: "yes", LimitPrice: yesAsk, RefAsk: yesAsk}
 	}
@@ -480,7 +480,7 @@ func (e *Engine) processMarket(ctx context.Context, ms *MarketState) {
 			"ticker", ms.Ticker,
 			"yesAsk", yesAsk,
 			"noAsk", 100-yesBid,
-			"threshold", 80,
+			"threshold", 85,
 		)
 		return // no trade
 	}
