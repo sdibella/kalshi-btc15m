@@ -123,7 +123,7 @@ func startDashboard() *exec.Cmd {
 		return nil
 	}
 
-	dashboardBinary := filepath.Join(filepath.Dir(exePath), "dashboard")
+	dashboardBinary := filepath.Join(filepath.Dir(exePath), "btc15m-dashboard")
 	_, err = os.Stat(dashboardBinary)
 	if err != nil {
 		slog.Warn("dashboard binary not found", "path", dashboardBinary)
