@@ -521,11 +521,16 @@ func (e *Engine) placeOrder(ctx context.Context, ms *MarketState, sig Signal) {
 		ms.Contracts = contracts
 		ms.FeeCents = fee
 
-		_ = e.journal.Log(journal.NewTrade(
+		if err := e.journal.Log(journal.NewTrade(
 			ms.Ticker, sig.Side, "buy",
 			sig.LimitPrice, contracts, fee,
 			"dry-run", contracts, true, sig.LimitPrice,
-		))
+		)); err != nil {
+			slog.Error("failed to journal dry-run trade",
+				"ticker", ms.Ticker,
+				"err", err,
+			)
+		}
 
 		slog.Info("dry-run trade",
 			"ticker", ms.Ticker,
@@ -613,11 +618,16 @@ func (e *Engine) checkOrderStatus(ctx context.Context, ms *MarketState) {
 		ms.Contracts = totalFilled
 		ms.FeeCents = TakerFee(totalFilled, avgPrice)
 
-		_ = e.journal.Log(journal.NewTrade(
+		if err := e.journal.Log(journal.NewTrade(
 			ms.Ticker, ms.Side, "buy",
 			avgPrice, totalFilled, ms.FeeCents,
 			ms.OrderID, totalFilled, false, avgPrice,
-		))
+		)); err != nil {
+			slog.Error("failed to journal trade",
+				"ticker", ms.Ticker,
+				"err", err,
+			)
+		}
 
 		slog.Info("order filled",
 			"ticker", ms.Ticker,

@@ -101,7 +101,9 @@ func main() {
 		os.Exit(1)
 	}
 	defer j.Close()
-	_ = j.Log(journal.NewSessionStart(cfg.KalshiEnv, cfg.DryRun, bal.Balance))
+	if err := j.Log(journal.NewSessionStart(cfg.KalshiEnv, cfg.DryRun, bal.Balance)); err != nil {
+		slog.Error("failed to journal session start", "err", err)
+	}
 	slog.Info("journal opened", "path", cfg.JournalPath)
 
 	// Start strategy engine

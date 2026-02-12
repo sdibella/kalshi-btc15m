@@ -32,8 +32,10 @@ func (j *Journal) Log(event any) error {
 
 	j.mu.Lock()
 	defer j.mu.Unlock()
-	_, err = j.f.Write(data)
-	return err
+	if _, err = j.f.Write(data); err != nil {
+		return err
+	}
+	return j.f.Sync()
 }
 
 // Close flushes and closes the underlying file.
