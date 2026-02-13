@@ -99,9 +99,10 @@ func InEntryWindow(secsUntilClose float64) bool {
 	return secsUntilClose > 210 && secsUntilClose <= 240
 }
 
-// AssumedWinRate is the backtest win rate used for Kelly sizing.
-// 93.5% from 31-trade backtest. Update as live data accumulates.
-const AssumedWinRate = 0.935
+// AssumedWinRate is the conservative win rate used for Kelly sizing.
+// Bayesian 5th percentile of 82W/2L posterior, shaded for unseen vol regimes.
+// At 0.92, Kelly naturally excludes entries >= 92c (terrible risk/reward).
+const AssumedWinRate = 0.92
 
 // KellySize computes the quarter-Kelly contract count per the strategy spec.
 //

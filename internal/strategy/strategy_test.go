@@ -193,7 +193,7 @@ func TestTakerFee(t *testing.T) {
 }
 
 func TestKellySize(t *testing.T) {
-	// Uses spec formula with AssumedWinRate=0.935:
+	// Uses spec formula with AssumedWinRate=0.92:
 	//   fee = 0.07 * min(entry, 100-entry)
 	//   b = (100 - entry - fee) / (entry + fee)
 	//   kelly = p - (q / b)
@@ -206,28 +206,28 @@ func TestKellySize(t *testing.T) {
 	}{
 		{
 			// entry=55, fee=0.07*45=3.15, winProfit=41.85, loss=58.15
-			// b=41.85/58.15=0.7196, kelly=0.935-(0.065/0.7196)=0.8447
-			// quarter=0.2112, cost=58.15, contracts=floor(0.2112*35537/58.15)=129
+			// b=41.85/58.15=0.7197, kelly=0.92-(0.08/0.7197)=0.8088
+			// quarter=0.2022, cost=58.15, contracts=floor(0.2022*35537/58.15)=123
 			name:         "entry at 55c, bal=$355.37",
 			limitPrice:   55,
 			balanceCents: 35537,
-			want:         129,
+			want:         123,
 		},
 		{
 			// entry=80, fee=0.07*20=1.40, winProfit=18.60, loss=81.40
-			// b=18.60/81.40=0.2285, kelly=0.935-(0.065/0.2285)=0.6506
-			// quarter=0.1627, cost=81.40, contracts=floor(0.1627*35537/81.40)=71
+			// b=18.60/81.40=0.2285, kelly=0.92-(0.08/0.2285)=0.5699
+			// quarter=0.1425, cost=81.40, contracts=floor(0.1425*35537/81.40)=62
 			name:         "entry at 80c (typical), bal=$355.37",
 			limitPrice:   80,
 			balanceCents: 35537,
-			want:         71,
+			want:         62,
 		},
 		{
 			// Same as above but $1000 balance — scales proportionally
 			name:         "entry at 80c, bal=$1000",
 			limitPrice:   80,
 			balanceCents: 100000,
-			want:         199,
+			want:         175,
 		},
 		{
 			name:         "zero balance",
