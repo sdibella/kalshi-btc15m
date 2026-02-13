@@ -115,21 +115,24 @@ func TestEvaluate(t *testing.T) {
 
 func TestInEntryWindow(t *testing.T) {
 	// InEntryWindow uses seconds until market CLOSE.
-	// Entry window: 0 < secsUntilClose <= 240 (last 4 minutes before close).
-	// Per spec: evaluate once when entering this window.
+	// Entry window: 210 < secsUntilClose <= 240 (30s window, 4:00→3:30 before close).
+	// Rechecks every tick within this window until signal or window expires.
 	tests := []struct {
 		name     string
 		secsLeft float64
 		want     bool
 	}{
-		{"inside: 200s until close", 200, true},
-		{"inside: 120s until close", 120, true},
+		{"inside: 225s until close (middle)", 225, true},
+		{"inside: 211s until close", 211, true},
 		{"inside: 240s until close (boundary)", 240, true},
-		{"inside: 1s until close", 1, true},
-		{"outside: 0s until close (boundary)", 0, false},
+		{"inside: 235s until close", 235, true},
+		{"outside: 210s until close (boundary)", 210, false},
+		{"outside: 200s until close", 200, false},
+		{"outside: 120s until close", 120, false},
+		{"outside: 1s until close", 1, false},
+		{"outside: 0s until close", 0, false},
 		{"outside: 241s until close", 241, false},
 		{"outside: 300s until close", 300, false},
-		{"outside: 540s until close", 540, false},
 		{"outside: negative", -10, false},
 	}
 

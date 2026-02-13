@@ -19,6 +19,10 @@ type Config struct {
 	DashboardPort int
 	DashboardHost string
 	JournalDir    string
+
+	// Volatility filter
+	VolDataDir   string  // path to data collector's data directory
+	VolMaxStdDev float64 // stddev threshold in dollars to block trading
 }
 
 func (c *Config) BaseURL() string {
@@ -47,6 +51,8 @@ func Load() (*Config, error) {
 		DashboardPort:     getEnvInt("DASHBOARD_PORT", 8080),
 		DashboardHost:     getEnvDefault("DASHBOARD_HOST", "localhost"),
 		JournalDir:        getEnvDefault("DASHBOARD_JOURNAL_DIR", "."),
+		VolDataDir:        getEnvDefault("VOL_DATA_DIR", "/home/stefan/KalshiBTC15min-data/data"),
+		VolMaxStdDev:      getEnvFloat("VOL_MAX_STDDEV", 200.0),
 	}
 
 	if cfg.KalshiAPIKeyID == "" {
@@ -76,6 +82,18 @@ func getEnvBool(key string, def bool) bool {
 		return def
 	}
 	return b
+}
+
+func getEnvFloat(key string, def float64) float64 {
+	v := os.Getenv(key)
+	if v == "" {
+		return def
+	}
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil {
+		return def
+	}
+	return f
 }
 
 func getEnvInt(key string, def int) int {

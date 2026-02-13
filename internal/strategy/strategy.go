@@ -64,24 +64,29 @@ type Engine struct {
 	balance         int
 	lastBalanceSync time.Time
 	lastDiscovery   time.Time
+
+	volFilter     *VolFilter
+	lastVolUpdate time.Time
 }
 
 // NewEngine creates a new strategy engine.
 func NewEngine(client *kalshi.Client, ws *kalshi.WSClient, cfg *config.Config, j *journal.Journal) *Engine {
 	return &Engine{
-		client:  client,
-		ws:      ws,
-		cfg:     cfg,
-		journal: j,
-		markets: make(map[string]*MarketState),
+		client:    client,
+		ws:        ws,
+		cfg:       cfg,
+		journal:   j,
+		markets:   make(map[string]*MarketState),
+		volFilter: NewVolFilter(cfg.VolDataDir, 15*time.Minute, cfg.VolMaxStdDev),
 	}
 }
 
 // Evaluate determines whether to trade based on orderbook prices.
-// Threshold 85c filters for high-confidence markets (98.7% WR in backtest).
+// Threshold 80c filters for markets with minimum edge (widest margin above breakeven).
+// Vol filter handles high-volatility protection separately.
 // Limit at ask price for immediate taker fill.
 func Evaluate(yesBid, yesAsk int) Signal {
-	const threshold = 85
+	const threshold = 80
 	if yesAsk >= threshold {
 		return Signal{Side: "yes", LimitPrice: yesAsk, RefAsk: yesAsk}
 	}
@@ -320,6 +325,18 @@ func (e *Engine) tick(ctx context.Context) {
 		}
 	}
 
+	// Update volatility filter every 10 seconds
+	if time.Since(e.lastVolUpdate) > 10*time.Second {
+		if price := e.volFilter.Update(); price > 0 {
+			slog.Debug("vol_price_update",
+				"brti", fmt.Sprintf("$%.2f", price),
+				"stddev", fmt.Sprintf("$%.2f", e.volFilter.StdDev()),
+				"samples", e.volFilter.SampleCount(),
+			)
+		}
+		e.lastVolUpdate = time.Now()
+	}
+
 	// Discover new markets every 30 seconds
 	if time.Since(e.lastDiscovery) > 30*time.Second {
 		e.discoverMarkets(ctx)
@@ -441,6 +458,18 @@ func (e *Engine) processMarket(ctx context.Context, ms *MarketState) {
 		return
 	}
 
+	// Volatility filter: block trading when BTC price stddev is too high
+	if !e.volFilter.IsSafe() {
+		stddev := e.volFilter.StdDev()
+		slog.Warn("vol_filter_blocked",
+			"ticker", ms.Ticker,
+			"stddev", fmt.Sprintf("$%.2f", stddev),
+			"threshold", fmt.Sprintf("$%.2f", e.cfg.VolMaxStdDev),
+			"secsUntilClose", int(secsUntilClose),
+		)
+		return
+	}
+
 	// Need strike to evaluate — retry next tick if not yet available
 	if !ms.StrikeFetched {
 		slog.Warn("evaluation deferred - strike not available", "ticker", ms.Ticker)
@@ -477,6 +506,7 @@ func (e *Engine) processMarket(ctx context.Context, ms *MarketState) {
 		"refAsk", sig.RefAsk,
 		"secsUntilClose", int(secsUntilClose),
 		"strike", ms.Strike,
+		"vol_stddev", fmt.Sprintf("$%.2f", e.volFilter.StdDev()),
 	)
 
 	// Place order
