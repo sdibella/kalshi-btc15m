@@ -31,7 +31,7 @@ type MarketState struct {
 	Subscribed    bool
 
 	// Entry state
-	Evaluated  bool // true once we've evaluated at the 4-min mark (don't re-evaluate)
+	Evaluated  bool // true once signal found or Kelly=0 (stop rechecking within window)
 	Traded     bool
 	Side       string
 	EntryPrice int
@@ -92,11 +92,11 @@ func Evaluate(yesBid, yesAsk int) Signal {
 	return Signal{} // no trade
 }
 
-// InEntryWindow returns true when we're in the last 4 minutes before close.
-// Per spec: evaluate once when secs_left first crosses below 534 (4 min before close).
-// In secsUntilClose terms: 0 < secsUntilClose <= 240.
+// InEntryWindow returns true during the 30-second evaluation window.
+// Window: 4:00 to 3:30 before market close (secsUntilClose 210–240).
+// Backtest: 100% WR within 30s window; beyond 30s, losses appear.
 func InEntryWindow(secsUntilClose float64) bool {
-	return secsUntilClose > 0 && secsUntilClose <= 240
+	return secsUntilClose > 210 && secsUntilClose <= 240
 }
 
 // AssumedWinRate is the backtest win rate used for Kelly sizing.
@@ -431,8 +431,8 @@ func (e *Engine) processMarket(ctx context.Context, ms *MarketState) {
 		return
 	}
 
-	// Skip if already evaluated/traded or outside entry window.
-	// Per spec: evaluate ONCE when secs_left first enters the window. Don't re-evaluate.
+	// Skip if signal already found, already traded, or outside the 30s entry window.
+	// Window: 4:00→3:30 before close. Recheck every tick until signal or window expires.
 	if ms.Evaluated || ms.Traded || !InEntryWindow(secsUntilClose) {
 		return
 	}
@@ -454,36 +454,17 @@ func (e *Engine) processMarket(ctx context.Context, ms *MarketState) {
 	yesAsk := ob.BestYesAsk()
 
 	if yesBid == 0 || yesAsk == 100 {
-		slog.Warn("evaluation deferred - orderbook empty",
-			"ticker", ms.Ticker,
-			"yesBid", yesBid,
-			"yesAsk", yesAsk,
-		)
-		return
+		return // orderbook empty — recheck next tick within window
 	}
 
-	// All data available — mark evaluated so we don't re-evaluate
-	ms.Evaluated = true
-
-	slog.Info("evaluating orderbook",
-		"ticker", ms.Ticker,
-		"yesBid", yesBid,
-		"yesAsk", yesAsk,
-		"noAsk", 100-yesBid,
-		"secsUntilClose", int(secsUntilClose),
-	)
-
-	// Evaluate signal
+	// Evaluate signal — recheck each tick within the 30s window
 	sig := Evaluate(yesBid, yesAsk)
 	if sig.Side == "" {
-		slog.Info("no signal - prices below threshold",
-			"ticker", ms.Ticker,
-			"yesAsk", yesAsk,
-			"noAsk", 100-yesBid,
-			"threshold", 85,
-		)
-		return // no trade
+		return // no signal yet — recheck next tick within window
 	}
+
+	// Signal found — stop rechecking
+	ms.Evaluated = true
 
 	slog.Info("signal detected",
 		"ticker", ms.Ticker,
