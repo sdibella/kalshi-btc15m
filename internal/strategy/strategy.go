@@ -99,12 +99,13 @@ func InEntryWindow(secsUntilClose float64) bool {
 	return secsUntilClose > 210 && secsUntilClose <= 240
 }
 
-// AssumedWinRate is the conservative win rate used for Kelly sizing.
-// Bayesian 5th percentile of 82W/2L posterior, shaded for unseen vol regimes.
-// At 0.92, Kelly naturally excludes entries >= 92c (terrible risk/reward).
-const AssumedWinRate = 0.92
+// BayesianWinRate tracks posterior distribution of true win rate.
+// Initialized with Beta(83, 3) from Feb 10-12 backtest (82W/2L).
+// Updated nightly with new trades to adapt to regime changes.
+var BayesianWinRate = NewBayesianPosterior()
 
 // KellySize computes the quarter-Kelly contract count per the strategy spec.
+// Uses Bayesian posterior median of win rate, which adapts nightly.
 //
 //	fee         = 0.07 * min(entry, 100-entry)  (per contract, in cents)
 //	win_profit  = 100 - entry - fee
@@ -129,7 +130,7 @@ func KellySize(limitPrice, balanceCents int) int {
 		return 0
 	}
 
-	p := AssumedWinRate
+	p := BayesianWinRate.Median()
 	q := 1 - p
 	b := winProfit / lossAmount
 	kelly := p - (q / b)

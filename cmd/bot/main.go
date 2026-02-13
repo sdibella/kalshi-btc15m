@@ -94,6 +94,16 @@ func main() {
 	}
 	slog.Info("authenticated", "balance", fmt.Sprintf("$%.2f", float64(bal.Balance)/100.0))
 
+	// Load Bayesian posterior from file (or use default Beta(83, 3))
+	posteriorPath := "posterior.json"
+	if err := strategy.BayesianWinRate.LoadFromFile(posteriorPath); err != nil {
+		slog.Error("failed to load Bayesian posterior", "err", err)
+		// Continue with default prior
+	}
+	slog.Info("Bayesian posterior loaded",
+		"median", fmt.Sprintf("%.1f%%", strategy.BayesianWinRate.Median()*100),
+	)
+
 	// Init journal
 	j, err := journal.New(cfg.JournalPath)
 	if err != nil {
