@@ -193,7 +193,7 @@ func TestTakerFee(t *testing.T) {
 }
 
 func TestKellySize(t *testing.T) {
-	// Uses spec formula with AssumedWinRate=0.92:
+	// Uses spec formula with fixed p=0.92:
 	//   fee = 0.07 * min(entry, 100-entry)
 	//   b = (100 - entry - fee) / (entry + fee)
 	//   kelly = p - (q / b)

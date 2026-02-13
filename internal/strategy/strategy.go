@@ -105,7 +105,9 @@ func InEntryWindow(secsUntilClose float64) bool {
 var BayesianWinRate = NewBayesianPosterior()
 
 // KellySize computes the quarter-Kelly contract count per the strategy spec.
-// Uses Bayesian posterior median of win rate, which adapts nightly.
+// Uses fixed 0.92 assumed win rate (conservative estimate from 22W/3L observed
+// at tradeable prices). Naturally blocks entries >=92c where risk/reward is
+// terrible. Will switch to Bayesian posterior once we have 100+ observations.
 //
 //	fee         = 0.07 * min(entry, 100-entry)  (per contract, in cents)
 //	win_profit  = 100 - entry - fee
@@ -130,7 +132,7 @@ func KellySize(limitPrice, balanceCents int) int {
 		return 0
 	}
 
-	p := BayesianWinRate.Median()
+	const p = 0.92
 	q := 1 - p
 	b := winProfit / lossAmount
 	kelly := p - (q / b)

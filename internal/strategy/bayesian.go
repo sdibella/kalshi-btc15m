@@ -116,6 +116,31 @@ func (bp *BayesianPosterior) Median() float64 {
 	return a / (a + b)
 }
 
+// Percentile5 returns the 5th percentile of the posterior (conservative estimate).
+// Uses normal approximation to Beta: p5 ≈ mean - 1.645 * stddev.
+// This is the value used for Kelly sizing — conservative by design.
+// As data accumulates, p5 converges toward the median.
+func (bp *BayesianPosterior) Percentile5() float64 {
+	bp.mu.Lock()
+	a := float64(bp.Alpha)
+	b := float64(bp.Beta)
+	bp.mu.Unlock()
+
+	if a+b == 0 {
+		return 0.5
+	}
+
+	mean := a / (a + b)
+	variance := (a * b) / ((a + b) * (a + b) * (a + b + 1))
+	sd := math.Sqrt(variance)
+
+	p5 := mean - 1.6449*sd
+	if p5 < 0 {
+		return 0
+	}
+	return p5
+}
+
 // CredibleInterval returns the [lower, upper] Bayesian credible interval.
 // Uses simple quantile approximation based on normal approximation to Beta.
 func (bp *BayesianPosterior) CredibleInterval(confidence float64) [2]float64 {

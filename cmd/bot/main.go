@@ -100,7 +100,7 @@ func main() {
 		slog.Error("failed to load Bayesian posterior", "err", err)
 		// Continue with default prior
 	}
-	slog.Info("Bayesian posterior loaded",
+	slog.Info("Bayesian posterior loaded (monitoring only, Kelly uses fixed 0.92)",
 		"median", fmt.Sprintf("%.1f%%", strategy.BayesianWinRate.Median()*100),
 	)
 
